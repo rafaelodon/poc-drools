@@ -1,0 +1,108 @@
+import odon.drools.poc.model.*
+import odon.drools.poc.constants.*
+import java.util.GregorianCalendar
+import java.math.BigDecimal
+
+global org.slf4j.Logger logger
+
+/* rule "freteGratis"
+	salience 2	
+ 	when 		
+  		$compra : Compra(
+  			valorFrete == null, 
+  			valorProdutos >= 100 
+  		)
+ 	then
+ 		modify ( $compra ) { 
+			setValorFrete(BigDecimal.valueOf(0)) 
+		};
+ 		logger.debug("Acima de R$100 frete grátis (DSL)");
+end */
+
+rule "freteSudeste"
+	salience 1	
+	when 
+		$compra : Compra( valorFrete == null )
+		(Endereco( uf == UF.MG ) or
+		 Endereco( uf == UF.SP ) or
+		 Endereco( uf == UF.RJ ) or
+		 Endereco( uf == UF.ES ))
+		
+	then
+		modify ( $compra ) { 
+			setValorFrete(BigDecimal.valueOf(0)) 
+		};
+		logger.debug("Frete para o sudeste é grátis.");
+end
+
+rule "freteGeral"	
+	when
+		$compra : Compra( valorFrete == null )
+	then
+		modify ( $compra ) { 
+			setValorFrete(BigDecimal.valueOf(9.9)) 
+		};		
+		logger.debug("Frete é 9.9 para qualquer lugar do país.");		
+end
+
+
+rule "descontoBoleto"
+	salience 99	
+ 	when
+ 		$compra : Compra( tipoFormaPagamento == TipoFormaPagamento.BOLETO)
+ 		not Desconto(
+ 			alvo == $compra,
+ 			identificador == "boleto"
+ 		)
+ 	then
+ 		insert(new Desconto("boleto", $compra,BigDecimal.valueOf(10)));
+ 		logger.debug("Pagamento com boleto ganha 10% de desconto (não acumulativo)");
+end
+
+rule "blackFriday2015"	
+	when
+		$compra : Compra(
+			cupom == "BLACKFRIDAY2015",
+  			data == new GregorianCalendar(2015, 10, 27)
+  		)
+  		not Desconto (
+  			identificador  == "blackfriday2015", 
+  			alvo == $compra 
+  		)
+ 	then
+ 		insert(new Desconto("blackfriday2015",$compra,BigDecimal.valueOf(30)));
+  		logger.debug("Durante a BlackFriday ganha 30% de desconto (não acumulativo)");
+end
+
+rule "primeiraCompra"	
+	when
+		$compra : Compra()
+		Usuario ( primeiraCompra )
+		not Desconto ( alvo == $compra,
+			identificador == "primeiracompra" )
+	then		
+		insert(new Desconto("primeiracompra",$compra,BigDecimal.valueOf(10),true));		
+		logger.debug("Na primeira compra usuário ganha 10% de desconto (acumulativo)");
+end
+
+rule "cadastroNewsletter"	
+	when
+		$compra : Compra()
+		Usuario ( enviarNewsletter )
+		not Desconto ( alvo == $compra, identificador == "newsletter" )
+	then		
+		insert(new Desconto("newsletter",$compra,BigDecimal.valueOf(10)));
+		logger.debug("Usuário cadastrado na Newsletter ganha 10% de desconto (não acumulativo)");
+end
+
+rule "tenisNikeMeiaGratis"
+	when		
+		$tenis : ItemCarrinho ( codigoProduto == 25 )
+		$meia : ItemCarrinho ( codigoProduto == 45 )
+		not Desconto ( alvo == $meia, identificador == "tenisNikeMeiaGratis" )
+		not Desconto ( alvo == $tenis, identificador == "tenisNikeMeiaGratis" )
+	then
+		insert(new Desconto("tenisNikeMeiaGratis",$tenis,BigDecimal.valueOf(0)));		
+		insert(new Desconto("tenisNikeMeiaGratis",$meia,BigDecimal.valueOf(100)));		
+		logger.debug("Comprando um Tênis Nike ganha uma Meia Adidas com 100% de desconto");					
+end

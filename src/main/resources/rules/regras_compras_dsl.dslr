@@ -1,0 +1,11 @@
+Configurar
+
+Regra "FreteZero"
+Prioridade 2
+Se existe uma compra
+- Cujo frete não foi definido		
+- Cujo valor da compra é maior ou igual a 100
+Então	
+	Mude o frete para 0
+	Registre o log "Acima de R$100 frete zero (DSL)"
+Fim
